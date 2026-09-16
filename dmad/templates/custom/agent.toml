@@ -1,0 +1,20 @@
+# Team overrides for {{agent_id}}'s [agent] block. Committed.
+# Merged on top of _dmad/agents/{{agent_id}}/customize.toml.
+#
+# Arrays like `principles` append. Menu items merge by `code`:
+# a matching code deep-merges that item in place, a new code is appended.
+#
+# [agent]
+# principles = ["Every assumption gets an owner and a test."]
+#
+# [[agent.menu]]
+# code = "brief"
+# description = "Write a project brief using the ACME template"
+#
+# [[agent.menu]]
+# code = "premortem"
+# description = "Run a pre-mortem risk workshop"
+# prompt = "Assume the project failed. Ask why."
+#
+# After editing, re-run the installer so generated provider files pick up
+# any change to name/title/icon/description.

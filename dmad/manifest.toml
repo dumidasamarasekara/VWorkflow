@@ -1,0 +1,39 @@
+# DMAD framework manifest. Consumed by install.py.
+
+[framework]
+name = "DMAD"
+version = "0.1.0"
+description = "A minimal, provider-agnostic persona-agent framework."
+
+[agents]
+dmad-agent-business-analyst = { source = "agents/dmad-agent-business-analyst" }
+
+# Each provider renders the SAME provider-neutral agent body into that tool's
+# expected file location and frontmatter shape. Adding a provider is config only.
+# Placeholders in `target` and frontmatter values: {agent} {name} {title} {icon} {description}
+
+[providers.claude]
+label = "Claude Code / Claude Desktop — agent skills"
+target = ".claude/skills/{agent}/SKILL.md"
+[providers.claude.frontmatter]
+name = "{agent}"
+description = "{description}"
+
+[providers.copilot]
+label = "GitHub Copilot in VS Code — custom agents"
+target = ".github/agents/{agent}.agent.md"
+[providers.copilot.frontmatter]
+name = "{name} ({title})"
+description = "{description}"
+
+[providers.claude-subagent]
+label = "Claude Code — subagents (also read by VS Code)"
+target = ".claude/agents/{agent}.md"
+[providers.claude-subagent.frontmatter]
+name = "{agent}"
+description = "{description}"
+
+[providers.generic]
+label = "Any other AI tool — plain Markdown, no frontmatter"
+target = ".dmad-agents/{agent}.md"
+[providers.generic.frontmatter]

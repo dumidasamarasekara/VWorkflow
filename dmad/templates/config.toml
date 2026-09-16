@@ -1,0 +1,13 @@
+# DMAD project config. Committed. Seeded once by the installer — safe to edit.
+# Layer 1 of 4: this -> config.user.toml -> custom/config.toml -> custom/config.user.toml
+
+[core]
+project_name = "{{project_name}}"
+document_output_language = "English"
+output_folder = "{project-root}/_dmad-output"
+
+[runtime]
+user_name = "{{user_name}}"
+communication_language = "English"
+planning_artifacts = "{project-root}/_dmad-output/planning-artifacts"
+project_knowledge = "{project-root}/docs"

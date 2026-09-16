@@ -1,0 +1,6 @@
+# Personal overrides for {{agent_id}}'s [agent] block. Gitignored.
+# Highest-precedence customization layer.
+#
+# [agent]
+# communication_style = "Blunt and fast. Skip the pleasantries."
+# persistent_facts = ["file:{project-root}/docs/my-domain-notes.md"]

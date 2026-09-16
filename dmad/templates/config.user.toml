@@ -1,0 +1,6 @@
+# Personal overrides for _dmad/config.toml. Gitignored — never committed.
+# Layer 2 of 4.
+#
+# [runtime]
+# user_name = "Your Name"
+# communication_language = "Sinhala"

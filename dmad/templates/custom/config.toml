@@ -1,0 +1,5 @@
+# Team overrides for _dmad/config.toml. Committed.
+# Layer 3 of 4.
+#
+# [core]
+# document_output_language = "English (UK)"
