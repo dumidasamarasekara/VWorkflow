@@ -86,6 +86,7 @@ def install_config(target: Path, project_name: str, user_name: str) -> None:
     subs = {"{{project_name}}": project_name, "{{user_name}}": user_name}
     seed(templates / "config.toml", target / "_dmad" / "config.toml", subs)
     seed(templates / "config.user.toml", target / "_dmad" / "config.user.toml")
+    seed(templates / "dmad-gitignore", target / "_dmad" / ".gitignore")
     seed(templates / "custom" / "config.toml", target / "_dmad" / "custom" / "config.toml")
     seed(
         templates / "custom" / "config.user.toml",
