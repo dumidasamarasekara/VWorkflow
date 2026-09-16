@@ -10,6 +10,7 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import sys
 from datetime import datetime, timezone
@@ -27,9 +28,12 @@ DEFAULT_PROVIDERS = ("claude", "copilot")
 RECORD_PATH = "_dmad/install.toml"
 
 
+class InstallError(Exception):
+    """A user-facing failure that both the CLI and the GUI can report."""
+
+
 def fail(message: str) -> None:
-    print(f"error: {message}", file=sys.stderr)
-    raise SystemExit(1)
+    raise InstallError(message)
 
 
 def safe_id(value: str) -> str:
@@ -158,50 +162,61 @@ def write_record(
     (target / RECORD_PATH).write_text(content, encoding="utf-8")
 
 
-def main() -> int:
+def load_manifest() -> dict[str, Any]:
     manifest = load_toml(PAYLOAD / "manifest.toml")
     if not manifest:
         fail(f"manifest not found at {PAYLOAD / 'manifest.toml'}")
+    return manifest
 
+
+def describe() -> dict[str, Any]:
+    """Framework metadata for a front-end to build its UI from."""
+    manifest = load_manifest()
+    return {
+        "version": manifest["framework"]["version"],
+        "providers": [
+            {"id": key, "label": provider["label"], "target": provider["target"]}
+            for key, provider in manifest["providers"].items()
+        ],
+        "agents": list(manifest["agents"]),
+        "defaultProviders": list(DEFAULT_PROVIDERS),
+    }
+
+
+def inspect_target(target_path: str) -> dict[str, Any]:
+    """Report whether a folder already has DMAD installed."""
+    target = Path(target_path).resolve()
+    previous = load_toml(target / RECORD_PATH).get("install", {})
+    return {
+        "target": str(target),
+        "exists": target.is_dir(),
+        "installed": bool(previous),
+        "installedVersion": previous.get("version"),
+        "providers": previous.get("providers", []),
+    }
+
+
+def run_install(
+    target_path: str,
+    providers: list[str] | None = None,
+    project_name: str | None = None,
+    user_name: str | None = None,
+    prune: bool = False,
+) -> dict[str, Any]:
+    """Install or sync DMAD into `target_path`. Raises InstallError on bad input."""
+    manifest = load_manifest()
     all_providers: dict[str, Any] = manifest["providers"]
     agents: dict[str, Any] = manifest["agents"]
     version = manifest["framework"]["version"]
 
-    parser = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-    parser.add_argument("--target", default=".", help="Project to install into.")
-    parser.add_argument(
-        "--providers",
-        nargs="+",
-        metavar="NAME",
-        help=f"AI tools to generate for, or 'all'. Available: {', '.join(all_providers)}.",
-    )
-    parser.add_argument("--project-name", help="Seeds core.project_name on first install.")
-    parser.add_argument("--user-name", help="Seeds runtime.user_name on first install.")
-    parser.add_argument(
-        "--prune",
-        action="store_true",
-        help="Delete adapter files from a previous install that are no longer selected.",
-    )
-    parser.add_argument("--list-providers", action="store_true", help="List providers and exit.")
-    args = parser.parse_args()
-
-    sys.stdout.reconfigure(encoding="utf-8")
-
-    if args.list_providers:
-        for key, provider in all_providers.items():
-            print(f"  {key:<18} {provider['label']}\n  {'':<18} -> {provider['target']}")
-        return 0
-
-    target = Path(args.target).resolve()
+    target = Path(target_path).resolve()
     if not target.is_dir():
         fail(f"target is not a directory: {target}")
 
     previous = load_toml(target / RECORD_PATH).get("install", {})
 
-    if args.providers:
-        selected = list(all_providers) if args.providers == ["all"] else args.providers
+    if providers:
+        selected = list(all_providers) if providers == ["all"] else list(providers)
     else:
         selected = previous.get("providers") or list(DEFAULT_PROVIDERS)
 
@@ -215,8 +230,8 @@ def main() -> int:
     install_agent_sources(target, agents)
     install_config(
         target,
-        args.project_name or previous.get("project_name") or target.name,
-        args.user_name or "there",
+        project_name or previous.get("project_name") or target.name,
+        user_name or "there",
     )
 
     generated: list[str] = []
@@ -228,26 +243,104 @@ def main() -> int:
 
     stale = [path for path in previous.get("generated", []) if path not in generated]
     tracked = list(generated)
-    if stale:
-        if args.prune:
-            for path in stale:
-                candidate = target / path
-                if candidate.is_file():
-                    candidate.unlink()
-                    print(f"  removed {path}")
-        else:
-            print("\nStale adapter files from a previous install (re-run with --prune to delete):")
-            for path in stale:
-                print(f"  {path}")
-            # Keep tracking them, otherwise a later --prune can no longer find them.
-            tracked += stale
+    pruned: list[str] = []
+    if stale and prune:
+        for path in stale:
+            candidate = target / path
+            if candidate.is_file():
+                candidate.unlink()
+                pruned.append(path)
+    elif stale:
+        # Keep tracking them, otherwise a later --prune can no longer find them.
+        tracked += stale
 
     write_record(target, version, selected, agent_ids, tracked)
 
-    print(f"\nDMAD {version} installed into {target}")
-    print(f"  agents:    {', '.join(agent_ids)}")
-    print(f"  providers: {', '.join(selected)}")
-    for path in generated:
+    return {
+        "version": version,
+        "target": str(target),
+        "agents": agent_ids,
+        "providers": selected,
+        "generated": generated,
+        "stale": [] if prune else stale,
+        "pruned": pruned,
+        "wasUpdate": bool(previous),
+    }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("--target", default=".", help="Project to install into.")
+    parser.add_argument(
+        "--providers",
+        nargs="+",
+        metavar="NAME",
+        help="AI tools to generate for, or 'all'. See --list-providers.",
+    )
+    parser.add_argument("--project-name", help="Seeds core.project_name on first install.")
+    parser.add_argument("--user-name", help="Seeds runtime.user_name on first install.")
+    parser.add_argument(
+        "--prune",
+        action="store_true",
+        help="Delete adapter files from a previous install that are no longer selected.",
+    )
+    parser.add_argument("--list-providers", action="store_true", help="List providers and exit.")
+    parser.add_argument("--describe", action="store_true", help="Print framework metadata as JSON.")
+    parser.add_argument("--inspect", action="store_true", help="Report --target install state as JSON.")
+    parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
+    args = parser.parse_args()
+
+    sys.stdout.reconfigure(encoding="utf-8")
+
+    def emit(payload: dict[str, Any]) -> None:
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+
+    try:
+        if args.describe:
+            emit(describe())
+            return 0
+
+        if args.inspect:
+            emit(inspect_target(args.target))
+            return 0
+
+        if args.list_providers:
+            info = describe()
+            if args.json:
+                emit(info)
+            else:
+                for provider in info["providers"]:
+                    print(f"  {provider['id']:<18} {provider['label']}")
+                    print(f"  {'':<18} -> {provider['target']}")
+            return 0
+
+        result = run_install(
+            args.target, args.providers, args.project_name, args.user_name, args.prune
+        )
+    except InstallError as error:
+        if args.json:
+            emit({"ok": False, "error": str(error)})
+        else:
+            print(f"error: {error}", file=sys.stderr)
+        return 1
+
+    if args.json:
+        emit({"ok": True, **result})
+        return 0
+
+    for path in result["pruned"]:
+        print(f"  removed {path}")
+    if result["stale"]:
+        print("\nStale adapter files from a previous install (re-run with --prune to delete):")
+        for path in result["stale"]:
+            print(f"  {path}")
+
+    print(f"\nDMAD {result['version']} installed into {result['target']}")
+    print(f"  agents:    {', '.join(result['agents'])}")
+    print(f"  providers: {', '.join(result['providers'])}")
+    for path in result["generated"]:
         print(f"  generated  {path}")
     print("\nEdit _dmad/config.toml, then customize personas in _dmad/custom/.")
     return 0

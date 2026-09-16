@@ -18,6 +18,13 @@ dmad/manifest.toml                 where each AI tool expects its file  (the plu
 wrapper file per provider. The wrappers differ only in **location and YAML frontmatter** — the
 body is byte-identical, so every tool runs the same agent.
 
+```
+DMAD/
+  install.py        CLI installer — the single source of install logic
+  dmad/             the payload that gets installed
+  dmad-studio/      optional Electron desktop app wrapping the CLI
+```
+
 | Provider | Generated file |
 |---|---|
 | `claude` | `.claude/skills/<agent-id>/SKILL.md` |
@@ -28,6 +35,20 @@ body is byte-identical, so every tool runs the same agent.
 Adding a new AI tool is a config change in `dmad/manifest.toml`, not code.
 
 ## Install into your project
+
+### Option A — desktop app
+
+[DMAD Studio](dmad-studio/README.md) gives you a folder picker and a one-click install:
+
+```bash
+cd dmad-studio && npm install && npm start
+```
+
+It is a thin shell over the CLI below — it shells out to `install.py --json` rather than
+reimplementing anything, so the two can never drift. The framework works perfectly well
+without it.
+
+### Option B — command line
 
 ```bash
 git clone https://github.com/<you>/DMAD.git ~/tools/DMAD
@@ -46,6 +67,9 @@ Available flags:
 | `--project-name`, `--user-name` | Seed `_dmad/config.toml` on first install only. |
 | `--prune` | Delete adapter files left behind when you drop a provider. |
 | `--list-providers` | Show every provider and its target path. |
+| `--describe` | Print framework metadata as JSON (used by Studio to build its UI). |
+| `--inspect` | Report whether `--target` already has DMAD installed, as JSON. |
+| `--json` | Emit machine-readable results instead of human text. |
 
 ## Update / re-sync
 

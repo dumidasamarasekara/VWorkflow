@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:;"
+    />
+    <title>DMAD Studio</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>DMAD Studio</h1>
+      <span id="version" class="version"></span>
+    </header>
+
+    <main>
+      <section class="step">
+        <h2><span class="num">1</span> Choose a project folder</h2>
+        <div class="picker">
+          <button id="browse" class="secondary">Browse…</button>
+          <div id="folder" class="folder empty">No folder selected</div>
+        </div>
+        <p id="folder-status" class="status"></p>
+      </section>
+
+      <section class="step">
+        <h2><span class="num">2</span> Select your AI tools</h2>
+        <div id="providers" class="providers"></div>
+      </section>
+
+      <section class="action">
+        <button id="install" class="primary" disabled>Install DMAD</button>
+        <p class="hint">
+          Existing files are never overwritten — your config and customizations are preserved.
+        </p>
+      </section>
+
+      <section id="result" class="result hidden">
+        <div class="result-head">
+          <h2 id="result-title"></h2>
+          <button id="open-folder" class="link hidden">Open folder</button>
+        </div>
+        <p id="result-summary" class="status"></p>
+        <ul id="result-files" class="files"></ul>
+      </section>
+    </main>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>
